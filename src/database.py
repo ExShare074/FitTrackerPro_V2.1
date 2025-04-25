@@ -43,6 +43,18 @@ class Database:
                     value TEXT
                 )
             """)
+            self.conn.execute("""
+                CREATE TABLE IF NOT EXISTS workouts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    user_id INTEGER,
+                    exercise TEXT,
+                    sets INTEGER,
+                    reps INTEGER,
+                    weight REAL,
+                    date TEXT,
+                    FOREIGN KEY(user_id) REFERENCES users(id)
+                )
+            """)
 
     def add_user(self, name):
         with self.conn:
@@ -64,3 +76,10 @@ class Database:
         result = self.conn.execute("SELECT weight FROM weights WHERE user_id = ? AND exercise = ?",
                                   (user_id, exercise)).fetchone()
         return result[0] if result else None
+
+    def save_workout(self, user_id, exercise, sets, reps, weight, date):
+        with self.conn:
+            self.conn.execute("""
+                INSERT INTO workouts (user_id, exercise, sets, reps, weight, date)
+                VALUES (?, ?, ?, ?, ?, ?)
+            """, (user_id, exercise, sets, reps, weight, date))
