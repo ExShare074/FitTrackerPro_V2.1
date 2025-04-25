@@ -206,6 +206,7 @@ class FitnessTrackerApp(QMainWindow):
             QPushButton:hover {background-color: #45a049;}
             QComboBox {border: 1px solid #ccc; border-radius: 5px; padding: 5px;}
             QTableWidget {border: 1px solid #ccc; background-color: white;}
+            QTreeWidget {border: 1px solid #ccc; background-color: white;}
         """)
 
     def change_language(self):
@@ -373,7 +374,7 @@ class HistoryDialog(QDialog):
         self.language = language
         self.translations = FitnessTrackerApp.translations
         self.setWindowTitle(self.tr("Workout History"))
-        self.setGeometry(200, 200, 600, 400)
+        self.setGeometry(200, 200, 800, 600)
         layout = QVBoxLayout(self)
 
         self.calendar = QCalendarWidget()
@@ -381,7 +382,14 @@ class HistoryDialog(QDialog):
         layout.addWidget(self.calendar)
 
         self.tree = QTreeWidget()
-        self.tree.setHeaderLabels([self.tr("Muscle Group"), self.tr("Date")])
+        self.tree.setColumnCount(4)
+        self.tree.setHeaderLabels([
+            self.tr("Exercise"), self.tr("Sets"), self.tr("Reps"), self.tr("Weight (kg)")
+        ])
+        self.tree.setColumnWidth(0, 300)
+        self.tree.setColumnWidth(1, 100)
+        self.tree.setColumnWidth(2, 100)
+        self.tree.setColumnWidth(3, 100)
         layout.addWidget(self.tree)
 
         # Highlight completed workout dates
@@ -423,18 +431,19 @@ class HistoryDialog(QDialog):
                     workouts_by_group[group].append((exercise, sets, reps, weight))
                     break
 
+        # Populate tree with muscle groups and workouts
         for group, group_workouts in workouts_by_group.items():
-            group_item = QTreeWidgetItem(self.tree, [self.tr(group), date_str])
-            table = QTableWidget()
-            table.setColumnCount(4)
-            table.setHorizontalHeaderLabels([
-                self.tr("Exercise"), self.tr("Sets"), self.tr("Reps"), self.tr("Weight (kg)")
-            ])
-            table.setRowCount(len(group_workouts))
-            for i, (exercise, sets, reps, weight) in enumerate(group_workouts):
-                table.setItem(i, 0, QTableWidgetItem(self.tr(exercise)))
-                table.setItem(i, 1, QTableWidgetItem(str(sets)))
-                table.setItem(i, 2, QTableWidgetItem(str(reps)))
-                table.setItem(i, 3, QTableWidgetItem(str(weight)))
-            table.resizeColumnsToContents()
-            self.tree.setItemWidget(group_item, 0, table)
+            group_item = QTreeWidgetItem(self.tree, [self.tr(group), "", "", ""])
+            group_item.setFlags(group_item.flags() & ~Qt.ItemIsSelectable)
+            group_item.setBackground(0, Qt.lightGray)
+            group_item.setBackground(1, Qt.lightGray)
+            group_item.setBackground(2, Qt.lightGray)
+            group_item.setBackground(3, Qt.lightGray)
+            for exercise, sets, reps, weight in group_workouts:
+                workout_item = QTreeWidgetItem(group_item, [
+                    self.tr(exercise), str(sets), str(reps), str(weight)
+                ])
+                workout_item.setTextAlignment(1, Qt.AlignCenter)
+                workout_item.setTextAlignment(2, Qt.AlignCenter)
+                workout_item.setTextAlignment(3, Qt.AlignCenter)
+        self.tree.expandAll()
