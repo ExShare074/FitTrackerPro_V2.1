@@ -1,4 +1,8 @@
 from datetime import datetime
+import logging
+
+# Setup logging
+logging.basicConfig(filename='fittracker.log', level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
 class WorkoutPlan:
     # Define compound exercises for larger increments
@@ -11,6 +15,7 @@ class WorkoutPlan:
         self.current_week = min(current_week, cycle_weeks)
         self.training_days = training_days  # 3 or 5 days
         self.training_split = self.get_training_split()
+        logging.info(f"Initialized WorkoutPlan: {cycle_weeks} weeks, week {current_week}, {training_days}-day split")
 
     def get_training_split(self):
         if self.training_days == 5:
@@ -122,18 +127,16 @@ class WorkoutPlan:
     def get_workouts(self, user_id, db):
         """Get workouts with updated weights based on progression."""
         current_day = datetime.now().weekday()
-        # Adjust for 3-day split: map days to workouts
         if self.training_days == 3:
             if current_day in [0, 2, 4]:  # Mon, Wed, Fri
                 day_index = [0, 1, 2][[0, 2, 4].index(current_day)]
             else:
-                return []  # Rest days
-        else:
-            if current_day >= 5:
-                return []  # Rest days
-            day_index = current_day
+                day_index = 0  # Default to first workout on rest days
+        else:  # 5-day split
+            day_index = 0 if current_day >= 5 else current_day  # Default to Day 1 (Chest) on rest days
 
         workouts = self.training_split[day_index]
+        logging.info(f"Selected workouts for day_index {day_index}: {workouts}")
         for workout in workouts:
             # Get last weight from DB or use initial
             last_weight = db.get_user_weight(user_id, workout["exercise"]) or workout["initial_weight"]
