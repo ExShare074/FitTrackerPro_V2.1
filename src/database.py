@@ -8,6 +8,7 @@ class Database:
             self.conn = sqlite3.connect(db_path, timeout=10)
             self.conn.execute("PRAGMA foreign_keys = ON")
             self.create_tables()
+            self.migrate_schema()
         except sqlite3.Error as e:
             print(f"Database connection error: {e}")
             raise
@@ -20,7 +21,7 @@ class Database:
             self.conn.execute('''CREATE TABLE IF NOT EXISTS users
                                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
                                  name TEXT NOT NULL,
-                                 telegram_id INTEGER UNIQUE NOT NULL)''')
+                                 telegram_id INTEGER UNIQUE)''')
             self.conn.execute('''CREATE TABLE IF NOT EXISTS cycles
                                 (user_id INTEGER,
                                  cycle_weeks INTEGER,
@@ -50,6 +51,20 @@ class Database:
             raise
         except Exception as e:
             print(f"Unexpected error in create_tables: {e}")
+            raise
+
+    def migrate_schema(self):
+        try:
+            # Проверяем, существует ли столбец telegram_id в таблице users
+            cursor = self.conn.execute("PRAGMA table_info(users)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if 'telegram_id' not in columns:
+                print("Adding telegram_id column to users table")
+                self.conn.execute("ALTER TABLE users ADD COLUMN telegram_id INTEGER UNIQUE")
+                self.conn.commit()
+                print("telegram_id column added successfully")
+        except sqlite3.Error as e:
+            print(f"Schema migration error: {e}")
             raise
 
     def add_user(self, name, telegram_id):
@@ -106,16 +121,6 @@ class Database:
             print(f"Error getting user weight: {e}")
             raise
 
-    def get_workouts(self, user_id):
-        try:
-            cursor = self.conn.execute("SELECT exercise, sets, reps, weight, date FROM workouts WHERE user_id = ?",
-                                       (user_id,))
-            return [{"exercise": row[0], "sets": row[1], "reps": row[2], "weight": row[3], "date": row[4]} for row in
-                    cursor.fetchall()]
-        except sqlite3.Error as e:
-            print(f"Error getting workouts: {e}")
-            raise
-
     def save_workout(self, user_id, exercise, sets, reps, weight, date):
         try:
             self.conn.execute("INSERT INTO workouts (user_id, exercise, sets, reps, weight, date) VALUES (?, ?, ?, ?, ?, ?)",
@@ -123,4 +128,12 @@ class Database:
             self.conn.commit()
         except sqlite3.Error as e:
             print(f"Error saving workout: {e}")
+            raise
+
+    def get_workouts(self, user_id):
+        try:
+            cursor = self.conn.execute("SELECT exercise, sets, reps, weight, date FROM workouts WHERE user_id = ?", (user_id,))
+            return [{"exercise": row[0], "sets": row[1], "reps": row[2], "weight": row[3], "date": row[4]} for row in cursor.fetchall()]
+        except sqlite3.Error as e:
+            print(f"Error getting workouts: {e}")
             raise

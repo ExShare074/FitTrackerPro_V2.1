@@ -5,6 +5,7 @@ from telegram.ext import Application, CommandHandler, CallbackQueryHandler, Mess
 from bot_config import BOT_TOKEN
 from database import Database
 from workout_plan import WorkoutPlan
+from datetime import datetime, timedelta
 
 # Настройка логирования
 logging.basicConfig(
@@ -122,7 +123,7 @@ async def button_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 await query.message.reply_text(get_text('history_empty', lang), parse_mode='Markdown')
         elif query.data == 'current_workout':
             plan = WorkoutPlan(8, 1, 5)
-            workouts = plan.get_current_workout()
+            workouts = plan.get_workouts(user_id, db)
             table = f"*📋 {get_text('current_workout', lang)}*:\n" + "\n".join(
                 [f"🏋️ *{w['exercise']}*: {w['sets']} подходов, {w['reps']}, {w['suggested_weight']} кг"
                  for w in workouts]
