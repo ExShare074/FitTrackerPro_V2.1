@@ -1,7 +1,3 @@
-from aiogram import types
-from aiogram.dispatcher import Dispatcher
-from logic.cycle_manager import start_new_cycle, get_cycle_info
-from logic.progression import get_today_workout
 import sqlite3
 import os
 
@@ -23,7 +19,8 @@ class Database:
         try:
             self.conn.execute('''CREATE TABLE IF NOT EXISTS users
                                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                 name TEXT NOT NULL)''')
+                                 name TEXT NOT NULL,
+                                 telegram_id INTEGER UNIQUE NOT NULL)''')
             self.conn.execute('''CREATE TABLE IF NOT EXISTS cycles
                                 (user_id INTEGER,
                                  cycle_weeks INTEGER,
@@ -55,12 +52,24 @@ class Database:
             print(f"Unexpected error in create_tables: {e}")
             raise
 
-    def add_user(self, name):
+    def add_user(self, name, telegram_id):
         try:
-            self.conn.execute("INSERT INTO users (name) VALUES (?)", (name,))
+            cursor = self.conn.execute("SELECT id FROM users WHERE telegram_id = ?", (telegram_id,))
+            if cursor.fetchone():
+                return  # Пользователь уже существует
+            self.conn.execute("INSERT INTO users (name, telegram_id) VALUES (?, ?)", (name, telegram_id))
             self.conn.commit()
         except sqlite3.Error as e:
             print(f"Error adding user: {e}")
+            raise
+
+    def get_user_id(self, telegram_id):
+        try:
+            cursor = self.conn.execute("SELECT id FROM users WHERE telegram_id = ?", (telegram_id,))
+            result = cursor.fetchone()
+            return result[0] if result else None
+        except sqlite3.Error as e:
+            print(f"Error getting user id: {e}")
             raise
 
     def get_users(self):
@@ -95,6 +104,16 @@ class Database:
             return result[0] if result else None
         except sqlite3.Error as e:
             print(f"Error getting user weight: {e}")
+            raise
+
+    def get_workouts(self, user_id):
+        try:
+            cursor = self.conn.execute("SELECT exercise, sets, reps, weight, date FROM workouts WHERE user_id = ?",
+                                       (user_id,))
+            return [{"exercise": row[0], "sets": row[1], "reps": row[2], "weight": row[3], "date": row[4]} for row in
+                    cursor.fetchall()]
+        except sqlite3.Error as e:
+            print(f"Error getting workouts: {e}")
             raise
 
     def save_workout(self, user_id, exercise, sets, reps, weight, date):
